@@ -1,22 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Type Ahead 👀</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Type Ahead 👀</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <form class="search-form">
+      <input id="Input" type="text" class="search" placeholder="City or State" disabled />
+      <ul id="ResultLists" class="suggestions">
+        <li>Filter for a city</li>
+        <li>or a state</li>
+      </ul>
+    </form>
+    <script>
+      const endpoint =
+        'https://gist.githubusercontent.com/Miserlou/c5cd8364bf9b2420bb29/raw/2bf258763cdddd704f8ffd3ea9a3e81d25e2c6f6/cities.json';
 
-  <form class="search-form">
-    <input type="text" class="search" placeholder="City or State">
-    <ul class="suggestions">
-      <li>Filter for a city</li>
-      <li>or a state</li>
-    </ul>
-  </form>
-<script>
-const endpoint = 'https://gist.githubusercontent.com/Miserlou/c5cd8364bf9b2420bb29/raw/2bf258763cdddd704f8ffd3ea9a3e81d25e2c6f6/cities.json';
+      const textInput = document.getElementById('Input');
+      let cities = [];
+      fetch(endpoint)
+        .then(response => response.json())
+        .then(data => {
+          cities = [...data];
+          textInput.disabled = false;
+        });
 
-</script>
-</body>
+      const findMatch = (data, keyword) => {
+        const pattern = RegExp(keyword, 'gi');
+        return data.filter(city => city.city.match(pattern) || city.state.match(pattern));
+      };
+
+      const createMatchList = (data, keyword) => {
+        const pattern = RegExp(keyword, 'gi');
+        return data
+          .map(city => {
+            const cityName = city.city.replace(pattern, `<span class="hl">${keyword}</span>`);
+            const stateName = city.state.replace(pattern, `<span class="hl">${keyword}</span>`);
+            return `
+            <li>
+              <span class="name">${cityName}, ${stateName}</span>
+              <span class="population">${(city.population * 1).toLocaleString()}</span>
+            </li>
+            `;
+          })
+          .join('');
+      };
+
+      const inputOnChange = function(e) {
+        const resultLists = document.getElementById('ResultLists');
+        let keyword = this.value.trim();
+        if (keyword === '') {
+          resultLists.innerHTML = `<li>Filter for a city</li><li>or a state</li>`;
+          return;
+        }
+
+        const matches = findMatch(cities, keyword);
+        let html = `<li>Not Found</li>`;
+        if (matches.length) {
+          html = createMatchList(matches, keyword);
+        }
+        resultLists.innerHTML = html;
+      };
+
+      const throttle = function(fn, delay) {
+        let last, timer;
+        return function(...args) {
+          let context = this;
+          let now = +new Date();
+          if (last && now < last + delay) {
+            clearTimeout(timer);
+            timer = setTimeout(function() {
+              last = now;
+              fn.call(context, ...args);
+            }, delay);
+          } else {
+            last = now;
+            fn.call(context, ...args);
+          }
+        };
+      };
+
+      textInput.addEventListener('input', throttle(inputOnChange, 800));
+    </script>
+  </body>
 </html>
